@@ -107,7 +107,11 @@ git push heroku master</pre>
       <ul>
         <% Spreadsheet.all.each do |spreadsheet| %>
           <li>
-            <%= spreadsheet.google_key %>
+            <form action="/process" method="post" class="form-inline">
+              <input type="hidden" name="sheet" value="<%= spreadsheet.google_key %>" />
+              <button type="submit" class="btn btn-submit">Sync</button>
+              <%= spreadsheet.google_key %>
+            </form>
             <a target="_new" href="https://docs.google.com/spreadsheet/pub?hl=en_US&hl=en_US&key=<%= spreadsheet.google_key %>&output=html">Google</a>
             <a target="_new" href="https://s3.amazonaws.com/<%= ENV['AWS_BUCKET'] %>/<%= spreadsheet.google_key %>">S3</a>
             <% if !@updated.nil? and @updated.include?(spreadsheet) %>

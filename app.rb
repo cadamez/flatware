@@ -42,17 +42,25 @@ class Spreadsheet
   def upload(filename, content)
     # Using an obsolete content_type because IE8 and before chokes on application/javascript and hey, Google does it.
     directory.files.create(:key => filename, :body => content, :public => true, :content_type => "text/javascript")
-  end
+    end
   
   def write_content
     write(base_json_path, :content => base_json_content, :filename => google_key)
-
+    
     sheet_ids.each do |sheet_id|
       path = "/feeds/list/#{google_key}/#{sheet_id}/public/values?alt=json-in-script&sq=&callback=Tabletop.singleton.loadSheet"
       write(path, :filename => "#{google_key}-#{sheet_id}")
     end
   rescue OpenURI::HTTPError => e
     # Fail silently for the time being
+  end
+
+  # TODO Rename this & refactor.
+  def write_single_content
+    write(base_json_path, :content => base_json_content, :filename => google_key)
+    path = "/feeds/list/#{google_key}/#{sheet_ids[0]}/public/values?alt=json-in-script&sq=&callback=Tabletop.singleton.loadSheet"
+    write(path, :filename => "#{google_key}-#{sheet_ids[0]}")
+    return self
   end
   
   def endpoint
@@ -62,6 +70,7 @@ class Spreadsheet
   class << self
   
     def from_key(key)
+      # bug in this gsub, doesn't accept urls w/ hashes on them
       clean_key = key.gsub(/.*key=(.*?)\&.*/,'\1')
       Spreadsheet.new.tap do |sheet|
         sheet.google_key = clean_key
@@ -94,7 +103,14 @@ get '/process' do
 end
 
 post '/process' do
-  @updated = Spreadsheet.select(&:write_content)
-  @notice = "Updated #{@updated.length} spreadsheets"
+
+  if params[:sheet]
+    @updated = [Spreadsheet.first(:google_key => params[:sheet]).write_single_content]
+    @notice = "A spreadsheet has been updated." 
+  else
+    @updated = Spreadsheet.select(&:write_content)
+    @notice = "Updated #{@updated.length} spreadsheets"
+  end
+
   erb :index
 end
